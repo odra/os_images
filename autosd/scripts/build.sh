@@ -10,19 +10,11 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 # *******************************************************************************
-module(
-    name = "os_images",
-    version = "1.0",
-)
+#!/bin/bash
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
-# Compliance and licensing toolchain
-bazel_dep(name = "score_tooling", version = "1.1.2")
-bazel_dep(name = "score_python_basics", version = "0.3.0")
+source ${SCRIPT_DIR}/vars.sh
+source ${SCRIPT_DIR}/aib.sh
 
-# Formatting and linting helpers
-bazel_dep(name = "score_format_checker", version = "0.1.1")
-bazel_dep(name = "aspect_rules_lint", version = "1.3.1")
-bazel_dep(name = "buildifier_prebuilt", version = "7.3.1")
-
-# Documentation tools
-bazel_dep(name = "score_docs_as_code", version = "2.0.3")
+aib::build_builder ${AIB_DISTRO}
+aib::build ${AIB_DISTRO} ${AIB_TARGET} image.aib.yml ${AIB_OCI_IMAGE} "--define-file vars.yml --define-file vars-devel.yml"

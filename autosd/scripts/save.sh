@@ -10,19 +10,20 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 # *******************************************************************************
-module(
-    name = "os_images",
-    version = "1.0",
-)
+#!/bin/bash
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
-# Compliance and licensing toolchain
-bazel_dep(name = "score_tooling", version = "1.1.2")
-bazel_dep(name = "score_python_basics", version = "0.3.0")
+source ${SCRIPT_DIR}/vars.sh
+source ${SCRIPT_DIR}/aib.sh
 
-# Formatting and linting helpers
-bazel_dep(name = "score_format_checker", version = "0.1.1")
-bazel_dep(name = "aspect_rules_lint", version = "1.3.1")
-bazel_dep(name = "buildifier_prebuilt", version = "7.3.1")
+if [ "${AIB_TARGET}" = "qemu" ]; then
+  DISK_IMG_EXT="qcow2"
+else
+  DISK_IMG_EXT="img"
+fi
 
-# Documentation tools
-bazel_dep(name = "score_docs_as_code", version = "2.0.3")
+aib::oci_to_disk_image ${AIB_OCI_IMAGE} ${AIB_BUILD_DIR}/outputs/score-autosd-$(arch)-latest.${DISK_IMG_EXT}
+aib::oci_export ${AIB_BUILD_DIR} ${AIB_OCI_IMAGE} score-autosd-$(arch)-latest-${AIB_TARGET}.tar
+
+sudo chown -R $(id -u):$(id -u) ${AIB_BUILD_DIR}
+

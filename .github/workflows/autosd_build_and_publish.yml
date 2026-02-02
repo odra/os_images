@@ -1,0 +1,61 @@
+# *******************************************************************************
+# Copyright (c) 2025 Contributors to the Eclipse Foundation
+#
+# See the NOTICE file(s) distributed with this work for additional
+# information regarding copyright ownership.
+#
+# This program and the accompanying materials are made available under the
+# terms of the Apache License Version 2.0 which is available at
+# https://www.apache.org/licenses/LICENSE-2.0
+#
+# SPDX-License-Identifier: Apache-2.0
+# *******************************************************************************
+name: "AutoSD: Build and Publish"
+
+on:
+  pull_request:
+    paths:
+      - autosd/**
+  workflow_dispatch:
+
+jobs:
+  run-steps:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: autosd
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Base Dependencies
+        run: |
+          sudo apt update -y
+          sudo apt install -y podman
+
+      - name: Install AIB container script
+        run: |
+          wget -O auto-image-builder.sh \
+          https://gitlab.com/CentOS/automotive/src/automotive-image-builder/-/raw/main/auto-image-builder.sh?ref_type=heads
+
+          chmod +x auto-image-builder.sh
+
+      - name: Build QEMU Image (x86_64)
+        run: |
+          export AIB_LOCAL_CONTAINER_STORAGE=$PWD/_build/containers-storage
+          export AIB_BIN=./auto-image-builder.sh
+
+          mkdir -p $AIB_LOCAL_CONTAINER_STORAGE
+
+          sudo -E bash ./scripts/build.sh
+
+      - name: Fix build dir permissions
+        run: |
+          sudo chown -R $(id -u) _build/
+
+      - name: Upload QEMU Image
+        uses: actions/upload-artifact@v4
+        with:
+          name: score-autosd-x86_64-latest.qcow2
+          path: _build/disk.qcow2

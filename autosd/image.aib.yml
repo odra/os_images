@@ -22,7 +22,6 @@ content:
     - id: epel
       baseurl: https://dl.fedoraproject.org/pub/epel/10/Everything/$arch/
   rpms:
-    - boost-devel
     - openssh-server
     - openssh-clients
     # bluechi packages
@@ -78,7 +77,6 @@ qm:
       - id: epel
         baseurl: https://dl.fedoraproject.org/pub/epel/10/Everything/$arch/
     rpms:
-      - boost-devel
       - bluechi-agent
     add_files:
       # bluechi files

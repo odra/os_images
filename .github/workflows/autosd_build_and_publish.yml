@@ -43,6 +43,7 @@ jobs:
 
       - name: Build QEMU Image (x86_64)
         run: |
+          export AIB_PODMAN_OPTIONS="--tmpfs /var/tmp"
           export AIB_LOCAL_CONTAINER_STORAGE=$PWD/_build/containers-storage
           export AIB_BIN=./auto-image-builder.sh
 

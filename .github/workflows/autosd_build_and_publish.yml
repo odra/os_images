@@ -43,7 +43,6 @@ jobs:
 
       - name: Build QEMU Image (x86_64)
         run: |
-          export AIB_PODMAN_OPTIONS="--tmpfs /var/tmp"
           export AIB_LOCAL_CONTAINER_STORAGE=$PWD/_build/containers-storage
           export AIB_BIN=./auto-image-builder.sh
 
@@ -59,4 +58,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: score-autosd-x86_64-latest.qcow2
-          path: _build/disk.qcow2
+          path: autosd/_build/disk.qcow2

@@ -16,5 +16,8 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source ${SCRIPT_DIR}/vars.sh
 source ${SCRIPT_DIR}/aib.sh
 
-aib::build_builder ${AIB_DISTRO}
-aib::build ${AIB_DISTRO} ${AIB_TARGET} image.aib.yml ${AIB_OCI_IMAGE} "--define-file vars.yml --define-file vars-devel.yml"
+aib::oci_to_disk_image ${AIB_OCI_IMAGE} ${AIB_BUILD_DIR}/outputs/score-autosd-$(arch)-latest.qcow2
+aib::oci_export ${AIB_BUILD_DIR} ${AIB_OCI_IMAGE} score-autosd-$(arch)-latest-qemu.tar
+
+sudo chown -R $(id -u):$(id -u) ${AIB_BUILD_DIR}
+

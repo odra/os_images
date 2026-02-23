@@ -72,26 +72,30 @@ aib::oci_to_disk_image() {
 }
 
 aib::oci_export() {
-    local build_dir=${1}
+	local build_dir=${1}
 	if [ -z ${build_dir+x} ]; then
 		echo "provide a build_dir"
 		exit 1
-	fi
+    	fi
 
-    local oci_image=${2}
+	local oci_image=${2}
 	if [ -z ${oci_image+x} ]; then
-		echo "provide a oci image name"
+		echo "provide an oci image name"
 		exit 1
 	fi
 
-    local img=quay.io/fedora/fedora:latest
+	local tarname=${3}
+	if [ -z ${tarname+x} ]; then
+		echo "provide a tarball file name"
+		exit 1
+	fi
 
-    mkdir -p ${build_dir}/bootc
+	local img=quay.io/fedora/fedora:latest
 
-    podman run \
-        -it --rm \
-        -v ${build_dir}/containers-storage:/var/lib/containers/storage \
-        -v ${build_dir}/bootc:/data \
-        ${img} \
-        bash -c "dnf install podman -y && podman image save -o /data/bootc.tar ${oci_image}"
+	sudo -E podman run \
+	-it --rm --privileged --security-opt label=type:unconfined_t \
+	-v ${build_dir}/containers-storage:/var/lib/containers/storage \
+	-v ${build_dir}/outputs:/outputs \
+	${img} \
+	bash -c "dnf install podman -y && podman images && podman image save -o /outputs/${tarname} ${oci_image}"
 }

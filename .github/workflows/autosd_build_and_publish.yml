@@ -41,7 +41,7 @@ jobs:
       - name: Install Base Dependencies
         run: |
           sudo apt update -y
-          sudo apt install -y podman
+          sudo apt install -y podman tree
 
       - name: Install AIB container script
         run: |
@@ -50,21 +50,37 @@ jobs:
 
           chmod +x auto-image-builder.sh
 
+      - name: Prepare Build
+        run: |
+          mkdir -p $PWD/_build/containers-storage
+          mkdir -p $PWD/_build/outputs
+
       - name: Build QEMU Image (x86_64)
         run: |
           export AIB_LOCAL_CONTAINER_STORAGE=$PWD/_build/containers-storage
           export AIB_BIN=./auto-image-builder.sh
 
-          mkdir -p $AIB_LOCAL_CONTAINER_STORAGE
-
           sudo -E bash ./scripts/build.sh
 
-      - name: Fix build dir permissions
+      - name: Create Disk Images
         run: |
-          sudo chown -R $(id -u) _build/
+          export AIB_LOCAL_CONTAINER_STORAGE=$PWD/_build/containers-storage
+          export AIB_BIN=./auto-image-builder.sh
 
-      # - name: Upload QEMU Image
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: score-autosd-${{ matrix.runner }}-latest.qcow2
-      #     path: autosd/_build/disk.qcow2
+          sudo -E bash ./scripts/save.sh
+
+      - name: Inspect outputs directory
+        run: |
+         ls -la $PWD/_build/outputs
+
+      - name: Upload QEMU Disk Image
+        uses: actions/upload-artifact@v4
+        with:
+          name: score-autosd-${{ matrix.platform }}-latest.qcow2
+          path: autosd/_build/outputs/score-autosd-${{ matrix.platform }}-latest.qcow2
+
+      - name: Upload QEMU Container Image
+        uses: actions/upload-artifact@v4
+        with:
+          name: score-autosd-${{ matrix.platform }}-latest-qemu.tar
+          path: autosd/_build/outputs/score-autosd-${{ matrix.platform }}-latest-qemu.tar

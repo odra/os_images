@@ -19,8 +19,17 @@ on:
   workflow_dispatch:
 
 jobs:
-  run-steps:
-    runs-on: ubuntu-latest
+  build:
+    strategy:
+      matrix:
+        platform: [x86_64, aarch64]
+        include:
+          - platform: x86_64
+            runner: ubuntu-latest
+          - platform: aarch64
+            runner: ubuntu-latest-aarch64
+    
+    runs-on: ${{ matrix.runner }}
 
     defaults:
       run:
@@ -57,5 +66,5 @@ jobs:
       - name: Upload QEMU Image
         uses: actions/upload-artifact@v4
         with:
-          name: score-autosd-x86_64-latest.qcow2
+          name: score-autosd-${{ matrix.runner }}-latest.qcow2
           path: autosd/_build/disk.qcow2

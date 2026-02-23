@@ -90,8 +90,8 @@ aib::oci_export() {
 
     podman run \
         -it --rm \
-        -v ${build_dir}/containers-storage:/var/lib/containers/storage:Z \
-        -v ${build_dir}/bootc:/data:Z \
+        -v ${build_dir}/containers-storage:/var/lib/containers/storage \
+        -v ${build_dir}/bootc:/data \
         ${img} \
         bash -c "dnf install podman -y && podman image save -o /data/bootc.tar ${oci_image}"
 }

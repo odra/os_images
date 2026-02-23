@@ -63,8 +63,8 @@ jobs:
         run: |
           sudo chown -R $(id -u) _build/
 
-      - name: Upload QEMU Image
-        uses: actions/upload-artifact@v4
-        with:
-          name: score-autosd-${{ matrix.runner }}-latest.qcow2
-          path: autosd/_build/disk.qcow2
+      # - name: Upload QEMU Image
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: score-autosd-${{ matrix.runner }}-latest.qcow2
+      #     path: autosd/_build/disk.qcow2

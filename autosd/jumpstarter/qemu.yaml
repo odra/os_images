@@ -29,9 +29,6 @@ export:
         # ubuntu
         OVMF_CODE.fd: /usr/share/OVMF/OVMF_CODE_4M.fd
         OVMF_VARS.fd: /usr/share/OVMF/OVMF_VARS_4M.fd
-        # fedora and variants
-        # OVMF_CODE.fd: /usr/share/OVMF/OVMF_CODE.fd
-        # OVMF_VARS.fd: /usr/share/OVMF/OVMF_VARS.fd
       hostfwd:
         ssh:
           hostport: 2222

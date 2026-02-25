@@ -1,10 +1,10 @@
-AutoSD MCO LoLa Demo
-====================
+AutoSD Image
+============
 
 ## Background and Basic Info
 
-This demo build an AutoSD image using [Automotive-Image-Builder](https://gitlab.com/CentOS/automotive/src/automotive-image-builder).
-This image comes pre-populated with the S-core's [communication](https://github.com/eclipse-score/communication) project packaged as RPM in a [COPR](https://copr.fedorainfracloud.org/coprs/pingou/score-playground/) repository as well as the [QM](https://github.com/containers/qm) project.
+This AtuoSD image can be built using [Automotive-Image-Builder](https://gitlab.com/CentOS/automotive/src/automotive-image-builder).
+The image uses [Eclipse Bluechi](https://bluechi.readthedocs.io/en/latest/) and [QM](https://qm.readthedocs.io/en/latest/) to bring its MCO architecture. 
 
 This is a base image which can be used as a starting point / base state to deploy specific Eclipse S-CORE releases.
 
@@ -29,9 +29,10 @@ To build a qemu image by running:
 ```
 $ export AIB_BIN=./auto--image-builder.sh
 $ sudo -E ./scripts/build.sh
+$ sudo -E ./scripts/save.sh
 ```
 
-The resulting image will be stored in `_build/disk.qcow2`.
+The resulting image will be stored in `_build/outputs/disk.qcow2`.
 
 Change the image perms (if needed) since `sudo` was used:
 

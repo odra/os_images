@@ -104,6 +104,12 @@ jobs:
           name: score-autosd-${{ matrix.platform }}-latest-qemu.tar
           path: autosd/_build/outputs/score-autosd-${{ matrix.platform }}-latest-qemu.tar
 
+      - name: Upload QEMU Container Builder Image
+        uses: actions/upload-artifact@v4
+        with:
+          name: score-autosd-builder-${{ matrix.platform }}-latest-qemu.tar
+          path: autosd/_build/outputs/score-autosd-builder-${{ matrix.platform }}-latest-qemu.tar
+
       - name: Upload RPI4 Disk Image
         uses: actions/upload-artifact@v4
         with:
@@ -116,4 +122,11 @@ jobs:
         with:
           name: score-autosd-${{ matrix.platform }}-latest-rpi4.tar
           path: autosd/_build/outputs/score-autosd-${{ matrix.platform }}-latest-rpi4.tar
+        if: matrix.platform == 'aarch64'
+
+      - name: Upload RPI4 Container Builder Image
+        uses: actions/upload-artifact@v4
+        with:
+          name: score-autosd-builder-${{ matrix.platform }}-latest-rpi4.tar
+          path: autosd/_build/outputs/score-autosd-builder-${{ matrix.platform }}-latest-rpi4.tar
         if: matrix.platform == 'aarch64'

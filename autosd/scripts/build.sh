@@ -16,5 +16,5 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source ${SCRIPT_DIR}/vars.sh
 source ${SCRIPT_DIR}/aib.sh
 
-aib::build_builder ${AIB_DISTRO}
-aib::build ${AIB_DISTRO} ${AIB_TARGET} image.aib.yml ${AIB_OCI_IMAGE} "--define-file vars.yml --define-file vars-devel.yml"
+aib::build_builder ${AIB_DISTRO} ${AIB_OCI_IMAGE_BUILDER}
+aib::build ${AIB_DISTRO} ${AIB_TARGET} image.aib.yml ${AIB_OCI_IMAGE} "--build-container ${AIB_OCI_IMAGE_BUILDER} --define-file vars.yml --define-file vars-devel.yml"

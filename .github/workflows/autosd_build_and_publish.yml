@@ -22,14 +22,32 @@ jobs:
   build:
     strategy:
       matrix:
-        platform: [x86_64, aarch64]
+        platform: [qemu-x86_64, qemu-aarch64, rpi4-aarch64]
         include:
-          - platform: x86_64
+          - platform: qemu-x86_64
             runner: ubuntu-latest
-          - platform: aarch64
+            arch: x86_64
+            target: qemu
+            disk_format: qcow2
+          - platform: qemu-aarch64
             runner: ubuntu-24.04-arm
+            arch: aarch64
+            target: qemu
+            disk_format: qcow2
+          - platform: rpi4-aarch64
+            runner: ubuntu-24.04-arm
+            arch: aarch64
+            target: rpi4
+            disk_format: img
     
     runs-on: ${{ matrix.runner }}
+
+    env:
+      AIB_BIN: ./auto-image-builder.sh
+      AIB_OCI_IMAGE: localhost/score-autosd-${{ matrix.target }}:latest-${{ matrix.arch }}
+      AIB_OCI_IMAGE_BUILDER: localhost/score-builder-${{ matrix.target }}:latest-${{ matrix.arch }}
+      AIB_TARGET: ${{ matrix.target }}
+      AIB_LOCAL_CONTAINER_STORAGE: ${{ github.workspace }}/autosd/_build/containers-storage
 
     defaults:
       run:
@@ -43,6 +61,9 @@ jobs:
           sudo apt update -y
           sudo apt install -y podman tree
 
+      - name: Podman Info
+        run: podman info
+
       - name: Install AIB container script
         run: |
           wget -O auto-image-builder.sh \
@@ -55,79 +76,29 @@ jobs:
           mkdir -p $PWD/_build/containers-storage
           mkdir -p $PWD/_build/outputs
 
-      - name: Build QEMU Images
-        run: |
-          export AIB_LOCAL_CONTAINER_STORAGE=$PWD/_build/containers-storage
-          export AIB_BIN=./auto-image-builder.sh
+      - name: Build Image
+        run: sudo -E bash ./scripts/build.sh
 
-          sudo -E bash ./scripts/build.sh
-
-      - name: Build RPI4 Images
-        run: |
-          export AIB_LOCAL_CONTAINER_STORAGE=$PWD/_build/containers-storage
-          export AIB_BIN=./auto-image-builder.sh
-          export AIB_OCI_IMAGE=localhost/score:latest-rpi4
-          export AIB_TARGET=rpi4
-
-          sudo -E bash ./scripts/build.sh
-        if: matrix.platform == 'aarch64'
-
-      - name: Create QEMU Disk Images
-        run: |
-          export AIB_LOCAL_CONTAINER_STORAGE=$PWD/_build/containers-storage
-          export AIB_BIN=./auto-image-builder.sh
-
-          sudo -E bash ./scripts/save.sh
-
-      - name: Create RPI4 Disk Images
-        run: |
-          export AIB_LOCAL_CONTAINER_STORAGE=$PWD/_build/containers-storage
-          export AIB_BIN=./auto-image-builder.sh
-          export AIB_OCI_IMAGE=localhost/score:latest-rpi4
-          export AIB_TARGET=rpi4
-
-          sudo -E bash ./scripts/save.sh
-        if: matrix.platform == 'aarch64'
-
+      - name: Create Disk Images
+        run: sudo -E bash ./scripts/save.sh
+      
       - name: Inspect outputs directory
-        run: |
-         ls -la $PWD/_build/outputs
+        run: ls -la $PWD/_build/outputs
 
-      - name: Upload QEMU Disk Image
+      - name: Upload Disk Image
         uses: actions/upload-artifact@v4
         with:
-          name: score-autosd-${{ matrix.platform }}-latest.qcow2
-          path: autosd/_build/outputs/score-autosd-${{ matrix.platform }}-latest.qcow2
+          name: score-autosd-${{ matrix.target }}-${{ matrix.arch }}-latest.${{ matrix.disk_format }}
+          path: autosd/_build/outputs/score-autosd-${{ matrix.target }}-${{ matrix.arch }}-latest.${{ matrix.disk_format }}
 
-      - name: Upload QEMU Container Image
+      - name: Upload Container Image
         uses: actions/upload-artifact@v4
         with:
-          name: score-autosd-${{ matrix.platform }}-latest-qemu.tar
-          path: autosd/_build/outputs/score-autosd-${{ matrix.platform }}-latest-qemu.tar
+          name: score-autosd-${{ matrix.target }}-${{ matrix.arch }}-latest.tar
+          path: autosd/_build/outputs/score-autosd-${{ matrix.target }}-${{ matrix.arch }}-latest.tar
 
-      - name: Upload QEMU Container Builder Image
+      - name: Upload Container Builder Image
         uses: actions/upload-artifact@v4
         with:
-          name: score-autosd-builder-${{ matrix.platform }}-latest-qemu.tar
-          path: autosd/_build/outputs/score-autosd-builder-${{ matrix.platform }}-latest-qemu.tar
-
-      - name: Upload RPI4 Disk Image
-        uses: actions/upload-artifact@v4
-        with:
-          name: score-autosd-${{ matrix.platform }}-latest.img
-          path: autosd/_build/outputs/score-autosd-${{ matrix.platform }}-latest.img
-        if: matrix.platform == 'aarch64'
-
-      - name: Upload RPI4 Container Image
-        uses: actions/upload-artifact@v4
-        with:
-          name: score-autosd-${{ matrix.platform }}-latest-rpi4.tar
-          path: autosd/_build/outputs/score-autosd-${{ matrix.platform }}-latest-rpi4.tar
-        if: matrix.platform == 'aarch64'
-
-      - name: Upload RPI4 Container Builder Image
-        uses: actions/upload-artifact@v4
-        with:
-          name: score-autosd-builder-${{ matrix.platform }}-latest-rpi4.tar
-          path: autosd/_build/outputs/score-autosd-builder-${{ matrix.platform }}-latest-rpi4.tar
-        if: matrix.platform == 'aarch64'
+          name: score-autosd-builder-${{ matrix.target }}-${{ matrix.arch }}-latest.tar
+          path: autosd/_build/outputs/score-autosd-builder-${{ matrix.target }}-${{ matrix.arch }}-latest.tar

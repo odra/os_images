@@ -12,6 +12,7 @@
 # *******************************************************************************
 AIB_BIN=${AIB_BIN:-/usr/bin/aib}
 AIB_OCI_IMAGE=${AIB_OCI_IMAGE:-localhost/score:latest-qemu}
+AIB_OCI_IMAGE_BUILDER=${AIB_OCI_IMAGE_BUILDER:-localhost/score-builder:latest}
 AIB_DISTRO=${AIB_DISTRO:-autosd10-sig}
 AIB_BUILD_DIR=${AIB_BUILD_DIR:-./_build}
 AIB_MANIFEST=${AIB_MANIFEST:-image.aib.yml}

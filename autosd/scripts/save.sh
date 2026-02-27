@@ -11,6 +11,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # *******************************************************************************
 #!/bin/bash
+set -e
+
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 source ${SCRIPT_DIR}/vars.sh
@@ -22,8 +24,11 @@ else
   DISK_IMG_EXT="img"
 fi
 
-aib::oci_to_disk_image ${AIB_OCI_IMAGE} ${AIB_BUILD_DIR}/outputs/score-autosd-$(arch)-latest.${DISK_IMG_EXT}
-aib::oci_export ${AIB_BUILD_DIR} ${AIB_OCI_IMAGE} score-autosd-$(arch)-latest-${AIB_TARGET}.tar
+mkdir -p ${AIB_BUILD_DIR}/outputs
+
+aib::oci_to_disk_image ${AIB_OCI_IMAGE_BUILDER} ${AIB_OCI_IMAGE} ${AIB_BUILD_DIR}/outputs/score-autosd-$(arch)-latest.${DISK_IMG_EXT}
 
 sudo chown -R $(id -u):$(id -u) ${AIB_BUILD_DIR}
 
+aib::oci_export ${AIB_BUILD_DIR} ${AIB_OCI_IMAGE} score-autosd-$(arch)-latest-${AIB_TARGET}.tar
+aib::oci_export ${AIB_BUILD_DIR} ${AIB_OCI_IMAGE_BUILDER} score-autosd-builder-$(arch)-latest-${AIB_TARGET}.tar

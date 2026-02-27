@@ -17,7 +17,13 @@ aib::build_builder() {
 		exit 1
 	fi
 
-	${AIB_BIN} build-builder --distro ${distro}
+       local image_name=${2}
+	if [ -z ${image_name+x} ]; then
+		echo "provide a builder distro image name"
+		exit 1
+	fi
+
+	${AIB_BIN} build-builder --distro=${distro} ${image_name}
 }
 
 aib::build() {
@@ -56,19 +62,25 @@ aib::build() {
 }
 
 aib::oci_to_disk_image() {
-	local oci_image=${1}
-	if [ -z ${oci_image+x} ]; then
-		echo "provide a oci image name"
+        local oci_image_builder=${1}
+	if [ -z ${oci_image_builder+x} ]; then
+		echo "provide an oci image builder name"
 		exit 1
 	fi
 
-	local disk_image_path=${2}
+	local oci_image=${2}
+	if [ -z ${oci_image+x} ]; then
+		echo "provide an oci image name"
+		exit 1
+	fi
+
+	local disk_image_path=${3}
 	if [ -z ${disk_image_path+x} ]; then
 		echo "provide a disk image path"
 		exit 1
 	fi
 
-	${AIB_BIN} to-disk-image ${oci_image} ${disk_image_path}
+	${AIB_BIN} to-disk-image --build-container=${oci_image_builder} ${oci_image} ${disk_image_path}
 }
 
 aib::oci_export() {
@@ -92,7 +104,11 @@ aib::oci_export() {
 
 	local img=quay.io/fedora/fedora:latest
 
-	sudo -E podman run \
+        if [ -f "${build_dir}/outputs/${tarname}" ]; then
+          rm ${build_dir}/outputs/${tarname}
+        fi
+
+	podman run \
 	-it --rm --privileged --security-opt label=type:unconfined_t \
 	-v ${build_dir}/containers-storage:/var/lib/containers/storage \
 	-v ${build_dir}/outputs:/outputs \

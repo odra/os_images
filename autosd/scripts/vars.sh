@@ -10,16 +10,10 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 # *******************************************************************************
-module(
-    name = "os_images",
-    version = "1.0",
-)
-
-# Compliance and licensing toolchain
-bazel_dep(name = "score_tooling", version = "1.1.0")
-bazel_dep(name = "score_python_basics", version = "0.3.0")
-
-# Formatting and linting helpers
-bazel_dep(name = "score_format_checker", version = "0.1.1")
-bazel_dep(name = "aspect_rules_lint", version = "1.3.1")
-bazel_dep(name = "buildifier_prebuilt", version = "7.3.1")
+AIB_BIN=${AIB_BIN:-/usr/bin/aib}
+AIB_OCI_IMAGE=${AIB_OCI_IMAGE:-localhost/score:latest}
+AIB_OCI_IMAGE_BUILDER=${AIB_OCI_IMAGE_BUILDER:-localhost/score-builder:latest}
+AIB_DISTRO=${AIB_DISTRO:-autosd10-sig}
+AIB_BUILD_DIR=${AIB_BUILD_DIR:-./_build}
+AIB_MANIFEST=${AIB_MANIFEST:-image.aib.yml}
+AIB_TARGET=${AIB_TARGET:-qemu}

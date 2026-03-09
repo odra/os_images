@@ -18,6 +18,10 @@ on:
       - autosd/**
   workflow_dispatch:
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   build:
     strategy:

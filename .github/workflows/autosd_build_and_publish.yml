@@ -102,3 +102,22 @@ jobs:
         with:
           name: score-autosd-builder-${{ matrix.target }}-${{ matrix.arch }}-latest.tar
           path: autosd/_build/outputs/score-autosd-builder-${{ matrix.target }}-${{ matrix.arch }}-latest.tar
+
+      - name: Push Container Images
+        run: |
+          if [ "$(arch)" = "x86_64" ]; then
+            OCI_ARCH=amd64
+          else
+            OCI_ARCH=arm64
+          fi
+
+          export IMG_NAMESPACE=${{ github.repository_owner }}/score-autosd-bootc
+          export IMG_TAG=pr-${{ github.event.pull_request.number }}-$(git rev-parse --short HEAD)-${{ matrix.target }}-$OCI_ARCH
+          export OCI_IMG=ghcr.io/$IMG_NAMESPACE:$IMG_TAG
+          export OCI_IMG_TAR=_build/outputs/score-autosd-${{ matrix.target }}-${{ matrix.arch }}-latest.tar
+
+          podman image import $OCI_IMG_TAR $OCI_IMG
+
+          echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
+
+          podman push $OCI_IMG

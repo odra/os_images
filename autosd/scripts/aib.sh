@@ -11,107 +11,133 @@
 # SPDX-License-Identifier: Apache-2.0
 # *******************************************************************************
 aib::build_builder() {
-	local distro=${1}
-	if [ -z ${distro+x} ]; then
-		echo "provide a builder distro"
-		exit 1
-	fi
+    local build_dir=${1}
+    if [ -z ${build_dir+x} ]; then
+        echo "provide a build_dir"
+        exit 1
+    fi
+	
+    local distro=${2}
+    if [ -z ${distro+x} ]; then
+        echo "provide a builder distro"
+        exit 1
+    fi
 
-       local image_name=${2}
-	if [ -z ${image_name+x} ]; then
-		echo "provide a builder distro image name"
-		exit 1
-	fi
+    local image_name=${3}
+    if [ -z ${image_name+x} ]; then
+        echo "provide a builder distro image name"
+        exit 1
+    fi
 
-	${AIB_BIN} build-builder --distro=${distro} ${image_name}
+    local opts=""
+    if [ "${image_name##*.}" = "oci" ]; then
+        opts="--oci-archive"
+    fi
+
+    ${AIB_BIN} build-builder --distro=${distro} ${opts} ${build_dir}/outputs/${image_name}
 }
 
 aib::build() {
-	local distro=${1}
-	if [ -z ${distro+x} ]; then
-		echo "provide a builder distro"
-		exit 1
-	fi
+    local build_dir=${1}
+    if [ -z ${build_dir+x} ]; then
+        echo "provide a build_dir"
+        exit 1
+    fi
 
-	local target=${2}
-	if [ -z ${target+x} ]; then
-		echo "provide a platform target"
-		exit 1
-	fi
+    local distro=${2}
+    if [ -z ${distro+x} ]; then
+        echo "provide a builder distro"
+        exit 1
+    fi
 
-	local manifest=${3}
-	if [ -z ${manifest+x} ]; then
-		echo "provide a manifest path"
-		exit 1
-	fi
+    local target=${3}
+    if [ -z ${target+x} ]; then
+        echo "provide a platform target"
+        exit 1
+    fi
 
-	local oci_image=${4}
-	if [ -z ${oci_image+x} ]; then
-		echo "provide a oci image name"
-		exit 1
-	fi
+    local manifest=${4}
+    if [ -z ${manifest+x} ]; then
+        echo "provide a manifest path"
+        exit 1
+    fi
 
-	local extras="${5}"
+    local oci_image=${5}
+    if [ -z ${oci_image+x} ]; then
+        echo "provide a oci image name"
+        exit 1
+    fi
+
+    local extras="${6}"
 	
-	${AIB_BIN} build \
-		${extras} \
-		--target ${target} \
-		--distro ${distro} \
-		${manifest} \
-		${oci_image}
+    ${AIB_BIN} build \
+    ${extras} \
+    --target ${target} \
+    --distro ${distro} \
+    ${manifest} \
+    ${opts} \
+    --oci-archive \
+    ${AIB_BUILD_DIR}/outputs/${oci_image}
 }
 
-aib::oci_to_disk_image() {
-        local oci_image_builder=${1}
-	if [ -z ${oci_image_builder+x} ]; then
-		echo "provide an oci image builder name"
-		exit 1
-	fi
+aib::to_disk_image() {
+    local build_dir=${1}
+    if [ -z ${build_dir+x} ]; then
+        echo "provide a build_dir"
+        exit 1
+    fi
+        
+    local oci_image_builder=${2}
+    if [ -z ${oci_image_builder+x} ]; then
+        echo "provide an oci image builder name"
+        exit 1
+    fi
 
-	local oci_image=${2}
-	if [ -z ${oci_image+x} ]; then
-		echo "provide an oci image name"
-		exit 1
-	fi
+    local oci_image=${3}
+    if [ -z ${oci_image+x} ]; then
+        echo "provide an oci image name"
+        exit 1
+    fi
 
-	local disk_image_path=${3}
-	if [ -z ${disk_image_path+x} ]; then
-		echo "provide a disk image path"
-		exit 1
-	fi
+    local disk_image_path=${4}
+    if [ -z ${disk_image_path+x} ]; then
+       echo "provide a disk image path"
+       exit 1
+    fi
 
-	${AIB_BIN} to-disk-image --build-container=${oci_image_builder} ${oci_image} ${disk_image_path}
+    ${AIB_BIN} --verbose to-disk-image \
+    --oci-archive \
+    --build-container=${oci_image_builder} \
+    ${build_dir}/outputs/${oci_image} \
+    ${build_dir}/outputs/${disk_image_path}
 }
 
-aib::oci_export() {
-	local build_dir=${1}
-	if [ -z ${build_dir+x} ]; then
-		echo "provide a build_dir"
-		exit 1
-    	fi
+aib::oci_import() {
+    local build_dir=${1}
+    if [ -z ${build_dir+x} ]; then
+        echo "provide a build_dir"
+        exit 1
+    fi
 
-	local oci_image=${2}
-	if [ -z ${oci_image+x} ]; then
-		echo "provide an oci image name"
-		exit 1
-	fi
+    local oci_archive=${2}
+    if [ -z ${oci_archive+x} ]; then
+        echo "provide an oci archive file name"
+        exit 1
+    fi
 
-	local tarname=${3}
-	if [ -z ${tarname+x} ]; then
-		echo "provide a tarball file name"
-		exit 1
-	fi
+    local image_name=${3}
+    if [ -z ${image_name+x} ]; then
+        echo "provide an image name"
+        exit 1
+    fi
 
-	local img=quay.io/fedora/fedora:latest
+    local img=quay.io/fedora/fedora:latest
+    oci_cmd="skopeo copy oci-archive:/outputs/${oci_archive} containers-storage:${image_name}"
 
-        if [ -f "${build_dir}/outputs/${tarname}" ]; then
-          rm ${build_dir}/outputs/${tarname}
-        fi
-
-	podman run \
+    podman --log-level=error run \
 	-it --rm --privileged --security-opt label=type:unconfined_t \
 	-v ${build_dir}/containers-storage:/var/lib/containers/storage \
 	-v ${build_dir}/outputs:/outputs \
 	${img} \
-	bash -c "dnf install podman -y && podman images && podman image save -o /outputs/${tarname} ${oci_image}"
+    bash -c "dnf install podman skopeo -y && ${oci_cmd} && podman images"
 }

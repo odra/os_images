@@ -107,21 +107,71 @@ jobs:
           name: score-autosd-builder-${{ matrix.target }}-${{ matrix.arch }}-latest.tar
           path: autosd/_build/outputs/score-autosd-builder-${{ matrix.target }}-${{ matrix.arch }}-latest.tar
 
+  publish:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Prepare
+        run: mkdir -p outputs
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt update -y
+          sudo apt install -y podman tree
+
+      - name: Download Container Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: outputs
+          merge-multiple: true
+
+      - name: Inspect Current Directory
+        run: tree .
+
+      - name: Import Container Images
+        run: | 
+          export OCI_REG=ghcr.io
+          export OCI_ORG=${{ github.repository }}
+          
+          for oci_archive in *.tar; do
+              if [[ "${oci_archive}" =~ score-autosd(-builder)?-([a-z0-9]+)-([a-z0-9_]+)-([a-z0-9_\.]+)\.tar ]]; then
+                  target="${BASH_REMATCH[2]}"
+                  arch="${BASH_REMATCH[3]}"
+                  
+                  if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+                    version="pr${{ github.event.pull_request.number }}"
+                  else
+                    version="${BASH_REMATCH[4]}"
+                  fi
+          
+                  if [[ "${arch}" = "x86_64" ]]; then
+                      oci_arch="amd64"
+                  elif [[ "${arch}" = "aarch64" ]]; then
+                      oci_arch="arm64"
+                  else
+                      echo "Invalid architecture: ${arch}"
+                      exit 1
+                  fi
+
+                  oci_image=${OCI_REG}/${OCI_ORG}/score-autosd${BASH_REMATCH[1]}:${version}-${target}-${oci_arch}
+
+                  echo "From: ${oci_archive}"
+                  echo "To: ${oci_image}"
+                  
+                  podman image import ${oci_archive} ${oci_image}
+                  
+                  echo
+              fi
+          done
+
+          podman images
+        working-directory: outputs
+
       - name: Push Container Images
         run: |
-          if [ "$(arch)" = "x86_64" ]; then
-            OCI_ARCH=amd64
-          else
-            OCI_ARCH=arm64
-          fi
-
-          export IMG_NAMESPACE=${{ github.repository_owner }}/score-autosd-bootc
-          export IMG_TAG=pr-${{ github.event.pull_request.number }}-$(git rev-parse --short HEAD)-${{ matrix.target }}-$OCI_ARCH
-          export OCI_IMG=ghcr.io/$IMG_NAMESPACE:$IMG_TAG
-          export OCI_IMG_TAR=_build/outputs/score-autosd-${{ matrix.target }}-${{ matrix.arch }}-latest.tar
-
-          podman image import $OCI_IMG_TAR $OCI_IMG
-
           echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
 
-          podman push $OCI_IMG
+          for img in $(podman images --format "{{.Repository}}:{{.Tag}}"); do
+            echo "Pushing ${img}"
+            podman push "$img"
+          done

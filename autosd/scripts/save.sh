@@ -26,22 +26,22 @@ fi
 
 mkdir -p ${AIB_BUILD_DIR}/outputs
 
+sudo chown -R $(id -u):$(id -u) ${AIB_BUILD_DIR}
+
 if [ -z "${AIB_OCI_IMAGE_SKIP}" ]; then
     aib::oci_to_disk_image ${AIB_OCI_IMAGE_BUILDER} ${AIB_OCI_IMAGE} ${AIB_BUILD_DIR}/outputs/score-autosd-${AIB_TARGET}-$(arch)-latest.${DISK_IMG_EXT}
 else 
     echo '[INFO] Skipping aib::oci_to_disk_image'
 fi
 
-sudo chown -R $(id -u):$(id -u) ${AIB_BUILD_DIR}
-
 if [ -z "${AIB_OCI_IMAGE_SKIP}" ]; then
-    aib::oci_export ${AIB_BUILD_DIR} ${AIB_OCI_IMAGE} score-autosd-${AIB_TARGET}-$(arch)-latest.tar
+    aib::oci_mgr "export" ${AIB_BUILD_DIR} ${AIB_OCI_IMAGE} score-autosd-${AIB_TARGET}-$(arch)-latest.tar
 else
     echo '[INFO] Skipping aib::oci_export for score-autosd'
 fi
 
 if [ -z "${AIB_OCI_IMAGE_BUILDER_SKIP}" ]; then
-    aib::oci_export ${AIB_BUILD_DIR} ${AIB_OCI_IMAGE_BUILDER} score-autosd-builder-${AIB_TARGET}-$(arch)-latest.tar
+    aib::oci_mgr "export" ${AIB_BUILD_DIR} ${AIB_OCI_IMAGE_BUILDER} score-autosd-builder-$(arch)-latest.tar
 else
     echo '[INFO] Skipping aib::oci_export for score-autosd-bootc'
 fi

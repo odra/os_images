@@ -83,35 +83,49 @@ aib::oci_to_disk_image() {
 	${AIB_BIN} to-disk-image --build-container=${oci_image_builder} ${oci_image} ${disk_image_path}
 }
 
-aib::oci_export() {
-	local build_dir=${1}
+aib::oci_mgr() {
+    local action=${1}
+    if [ -z ${action+x} ]; then
+		echo "provide a tarball file name"
+		exit 1
+	fi
+	local build_dir=${2}
 	if [ -z ${build_dir+x} ]; then
 		echo "provide a build_dir"
 		exit 1
-    	fi
+    fi
 
-	local oci_image=${2}
+	local oci_image=${3}
 	if [ -z ${oci_image+x} ]; then
 		echo "provide an oci image name"
 		exit 1
 	fi
 
-	local tarname=${3}
+	local tarname=${4}
 	if [ -z ${tarname+x} ]; then
 		echo "provide a tarball file name"
 		exit 1
-	fi
+	fi	 
 
-	local img=quay.io/fedora/fedora:latest
+    local img=quay.io/fedora/fedora:latest 
 
+    if [ "${action}" = "export" ]; then
+        oci_cmd="podman images && podman image save -o /outputs/${tarname} ${oci_image}"
+        
         if [ -f "${build_dir}/outputs/${tarname}" ]; then
-          rm ${build_dir}/outputs/${tarname}
+            rm ${build_dir}/outputs/${tarname}
         fi
+    elif [ "${action}" = "import" ]; then
+        oci_cmd="podman image import /outputs/${tarname} ${oci_image} && podman images"
+    else
+        echo "[ERR] invalid oci_mgr action: ${action}"
+        exit 1
+    fi
 
-	podman run \
+	podman --log-level=error run \
 	-it --rm --privileged --security-opt label=type:unconfined_t \
 	-v ${build_dir}/containers-storage:/var/lib/containers/storage \
 	-v ${build_dir}/outputs:/outputs \
 	${img} \
-	bash -c "dnf install podman -y && podman images && podman image save -o /outputs/${tarname} ${oci_image}"
+    bash -c "dnf install podman -y && ${oci_cmd}"
 }

@@ -23,7 +23,54 @@ permissions:
   packages: write
 
 jobs:
-  build:
+  build-builder:
+    strategy:
+      matrix:
+        platform: [x86_64, aarch64]
+        include:
+          - platform: x86_64
+            runner: ubuntu-latest
+            disk_format: qcow2
+          - platform: aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    env:
+      AIB_BIN: ./auto-image-builder.sh
+      AIB_LOCAL_CONTAINER_STORAGE: ${{ github.workspace }}/autosd/_build/containers-storage
+    defaults:
+      run:
+        working-directory: autosd
+    needs: 
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Base Dependencies
+        run: |
+          sudo apt update -y
+          sudo apt install -y podman tree
+      - name: Podman Info
+        run: podman info
+      - name: Install AIB container script
+        run: |
+          wget -O auto-image-builder.sh \
+          https://gitlab.com/CentOS/automotive/src/automotive-image-builder/-/raw/main/auto-image-builder.sh?ref_type=heads
+
+          chmod +x auto-image-builder.sh
+      - name: Prepare Build
+        run: |
+          mkdir -p $PWD/_build/containers-storage
+          mkdir -p $PWD/_build/outputs
+      - name: Build Bootc Builder
+        run: |
+          ./scripts/build.sh
+        env:
+          AIB_OCI_IMAGE_SKIP: Y
+      - name: Upload Container Builder Image
+        uses: actions/upload-artifact@v4
+        with:
+          name: score-autosd-builder-${{ matrix.platform }}-latest.tar
+          path: autosd/_build/outputs/score-autosd-builder-${{ matrix.platform }}-latest.tar
+
+  build-bootc:
     strategy:
       matrix:
         platform: [qemu-x86_64, qemu-aarch64, rpi4-aarch64]
@@ -56,6 +103,8 @@ jobs:
     defaults:
       run:
         working-directory: autosd
+
+    needs: build-builder
 
     steps:
       - uses: actions/checkout@v4
@@ -109,7 +158,7 @@ jobs:
 
   publish:
     runs-on: ubuntu-latest
-    needs: build
+    needs: build-bootc
     steps:
       - name: Prepare
         run: mkdir -p outputs

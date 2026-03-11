@@ -16,5 +16,15 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source ${SCRIPT_DIR}/vars.sh
 source ${SCRIPT_DIR}/aib.sh
 
-aib::build_builder ${AIB_DISTRO} ${AIB_OCI_IMAGE_BUILDER}
-aib::build ${AIB_DISTRO} ${AIB_TARGET} image.aib.yml ${AIB_OCI_IMAGE} "--build-container ${AIB_OCI_IMAGE_BUILDER} --define-file vars.yml --define-file vars-devel.yml"
+if [ -z "${AIB_OCI_IMAGE_BUILDER_SKIP}" ]; then  
+    aib::build_builder ${AIB_DISTRO} ${AIB_OCI_IMAGE_BUILDER}
+else
+    echo '[INFO] Skipping aib::build_builder'
+fi
+
+if [ -z "${AIB_OCI_IMAGE_SKIP}" ]; then
+    aib::build ${AIB_DISTRO} ${AIB_TARGET} image.aib.yml ${AIB_OCI_IMAGE} \
+    "--build-container ${AIB_OCI_IMAGE_BUILDER} --define-file vars.yml --define-file vars-devel.yml"
+else
+    echo '[INFO] Skipping aib::build'
+fi

@@ -24,24 +24,15 @@ else
   DISK_IMG_EXT="img"
 fi
 
-mkdir -p ${AIB_BUILD_DIR}/outputs
-
-sudo chown -R $(id -u):$(id -u) ${AIB_BUILD_DIR}
-
-if [ -z "${AIB_OCI_IMAGE_SKIP}" ]; then
-    aib::oci_to_disk_image ${AIB_OCI_IMAGE_BUILDER} ${AIB_OCI_IMAGE} ${AIB_BUILD_DIR}/outputs/score-autosd-${AIB_TARGET}-$(arch)-latest.${DISK_IMG_EXT}
-else 
-    echo '[INFO] Skipping aib::oci_to_disk_image'
-fi
-
-if [ -z "${AIB_OCI_IMAGE_SKIP}" ]; then
-    aib::oci_mgr "export" ${AIB_BUILD_DIR} ${AIB_OCI_IMAGE} score-autosd-${AIB_TARGET}-$(arch)-latest.tar
+if [ "$(arch)" = "x86_64" ]; then
+    oci_arch="amd64"
+elif [ "$(arch)" = "aarch64" ]; then
+    oci_arch="arm64"
 else
-    echo '[INFO] Skipping aib::oci_export for score-autosd'
+  echo "[ERR] Unsupported architecture: $(arch)"
 fi
 
-if [ -z "${AIB_OCI_IMAGE_BUILDER_SKIP}" ]; then
-    aib::oci_mgr "export" ${AIB_BUILD_DIR} ${AIB_OCI_IMAGE_BUILDER} score-autosd-builder-$(arch)-latest.tar
-else
-    echo '[INFO] Skipping aib::oci_export for score-autosd-bootc'
-fi
+builder_image=localhost/${AIB_PREFIX}-builder:latest-${oci_arch}
+src_image=${AIB_PREFIX}-${AIB_TARGET}-latest-${oci_arch}.oci
+
+aib::to_disk_image ${AIB_BUILD_DIR} ${builder_image} ${src_image} score-autosd-${AIB_TARGET}-$(arch)-latest.${DISK_IMG_EXT}

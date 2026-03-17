@@ -16,5 +16,26 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source ${SCRIPT_DIR}/vars.sh
 source ${SCRIPT_DIR}/aib.sh
 
-aib::build_builder ${AIB_DISTRO} ${AIB_OCI_IMAGE_BUILDER}
-aib::build ${AIB_DISTRO} ${AIB_TARGET} image.aib.yml ${AIB_OCI_IMAGE} "--build-container ${AIB_OCI_IMAGE_BUILDER} --define-file vars.yml --define-file vars-devel.yml"
+if [ "$(arch)" = "x86_64" ]; then
+    oci_arch="amd64"
+elif [ "$(arch)" = "aarch64" ]; then
+    oci_arch="arm64"
+else
+  echo "[ERR] Unsupported architecture: $(arch)"
+fi
+
+if [ -z "${AIB_OCI_IMAGE_BUILDER_SKIP}" ]; then  
+    aib::build_builder ${AIB_BUILD_DIR} ${AIB_DISTRO} ${AIB_PREFIX}-builder-latest-${oci_arch}.oci
+else
+    echo '[INFO] Skipping aib::build_builder'
+fi
+
+if [ -z "${AIB_OCI_IMAGE_SKIP}" ]; then
+    aib_builder_image=localhost/${AIB_PREFIX}-builder:latest-${oci_arch}
+    aib_image=${AIB_PREFIX}-${AIB_TARGET}-latest-${oci_arch}.oci
+
+    aib::build ${AIB_BUILD_DIR} ${AIB_DISTRO} ${AIB_TARGET} image.aib.yml ${aib_image} \
+    "--define-file vars.yml --define-file vars-devel.yml --build-container ${aib_builder_image}"
+else
+    echo '[INFO] Skipping aib::build'
+fi

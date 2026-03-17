@@ -14,12 +14,70 @@ name: "AutoSD: Build and Publish"
 
 on:
   pull_request:
+    branches:
+      - main
     paths:
       - autosd/**
+      - .github/workflows/autosd_build_and_publish.yml
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
-  build:
+  build-builder:
+    strategy:
+      matrix:
+        platform: [x86_64, aarch64]
+        include:
+          - platform: x86_64
+            runner: ubuntu-latest
+            oci_arch: amd64
+          - platform: aarch64
+            runner: ubuntu-24.04-arm
+            oci_arch: arm64
+    runs-on: ${{ matrix.runner }}
+    env:
+      AIB_BIN: ./auto-image-builder.sh
+      AIB_PREFIX: score-autosd
+      AIB_DISTRO: autosd10-sig
+      AIB_OCI_IMAGE_SKIP: Y
+      AIB_BUILD_DIR: ./_build
+      AIB_LOCAL_CONTAINER_STORAGE: ${{ github.workspace }}/autosd/_build/containers-storage
+    defaults:
+      run:
+        working-directory: autosd
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Base Dependencies
+        run: |
+          sudo apt update -y
+          sudo apt install -y podman tree
+      - name: Podman Info
+        run: podman info
+      - name: Install AIB container script
+        run: |
+          wget -O auto-image-builder.sh \
+          https://gitlab.com/CentOS/automotive/src/automotive-image-builder/-/raw/main/auto-image-builder.sh?ref_type=heads
+          chmod +x auto-image-builder.sh
+      - name: Prepare Build
+        run: |
+          mkdir -p $PWD/_build/containers-storage
+          mkdir -p $PWD/_build/outputs
+      - name: Build Bootc Builder
+        run: |
+          sudo -E bash ./scripts/build.sh 
+      - name: Store Container Builder Image
+        uses: actions/upload-artifact@v4
+        with:
+          name: score-autosd-builder-latest-${{ matrix.oci_arch }}.oci
+          path: autosd/_build/outputs/score-autosd-builder-latest-${{ matrix.oci_arch }}.oci
+
+  build-bootc:
     strategy:
       matrix:
         platform: [qemu-x86_64, qemu-aarch64, rpi4-aarch64]
@@ -27,16 +85,19 @@ jobs:
           - platform: qemu-x86_64
             runner: ubuntu-latest
             arch: x86_64
+            oci_arch: amd64
             target: qemu
             disk_format: qcow2
           - platform: qemu-aarch64
             runner: ubuntu-24.04-arm
             arch: aarch64
+            oci_arch: arm64
             target: qemu
             disk_format: qcow2
           - platform: rpi4-aarch64
             runner: ubuntu-24.04-arm
             arch: aarch64
+            oci_arch: arm64
             target: rpi4
             disk_format: img
     
@@ -44,14 +105,17 @@ jobs:
 
     env:
       AIB_BIN: ./auto-image-builder.sh
-      AIB_OCI_IMAGE: localhost/score-autosd-${{ matrix.target }}:latest-${{ matrix.arch }}
-      AIB_OCI_IMAGE_BUILDER: localhost/score-builder-${{ matrix.target }}:latest-${{ matrix.arch }}
+      AIB_PREFIX: score-autosd
+      AIB_BUILD_DIR: ./_build
+      AIB_OCI_IMAGE_BUILDER_SKIP: Y
       AIB_TARGET: ${{ matrix.target }}
       AIB_LOCAL_CONTAINER_STORAGE: ${{ github.workspace }}/autosd/_build/containers-storage
 
     defaults:
       run:
         working-directory: autosd
+
+    needs: build-builder
 
     steps:
       - uses: actions/checkout@v4
@@ -76,6 +140,19 @@ jobs:
           mkdir -p $PWD/_build/containers-storage
           mkdir -p $PWD/_build/outputs
 
+      - name: Download Container Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: score-autosd-builder-latest-${{ matrix.oci_arch }}.oci
+          path: autosd/_build/outputs
+          merge-multiple: true
+
+      - name: Inspect downloaded artifacts
+        run: tree _build
+
+      - name: Import Builder Image
+        run: sudo -E bash ./scripts/load.sh
+
       - name: Build Image
         run: sudo -E bash ./scripts/build.sh
 
@@ -94,11 +171,68 @@ jobs:
       - name: Upload Container Image
         uses: actions/upload-artifact@v4
         with:
-          name: score-autosd-${{ matrix.target }}-${{ matrix.arch }}-latest.tar
-          path: autosd/_build/outputs/score-autosd-${{ matrix.target }}-${{ matrix.arch }}-latest.tar
+          name: score-autosd-${{ matrix.target }}-latest-${{ matrix.oci_arch }}.oci
+          path: autosd/_build/outputs/score-autosd-${{ matrix.target }}-latest-${{ matrix.oci_arch }}.oci
 
-      - name: Upload Container Builder Image
-        uses: actions/upload-artifact@v4
+  publish:
+    # See: https://github.com/actions/runner-images/issues/10443
+    runs-on: ubuntu-22.04
+    needs: build-bootc
+    permissions:
+        packages: write
+    steps:
+      - name: Prepare
+        run: mkdir -p outputs
+ 
+      - name: Install System Dependencies
+        run: |
+          sudo apt update -y
+          sudo apt install -y podman tree
+ 
+      - name: Download Container Artifacts
+        uses: actions/download-artifact@v4
         with:
-          name: score-autosd-builder-${{ matrix.target }}-${{ matrix.arch }}-latest.tar
-          path: autosd/_build/outputs/score-autosd-builder-${{ matrix.target }}-${{ matrix.arch }}-latest.tar
+          path: outputs
+          merge-multiple: true
+ 
+      - name: Inspect Current Directory
+        run: tree .
+ 
+      - name: Tag Container Images
+        run: |
+          export OCI_REG=ghcr.io
+          export OCI_ORG=${{ github.repository }}
+
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            tag_pr="pr${{ github.event.pull_request.number }}"
+          fi
+
+          for oci_file in *.oci; do 
+            if [[ "${oci_file}" =~ score-autosd-(builder|qemu|rpi4)-([a-z0-9_]+)-(amd64|arm64)\.oci ]]; then
+              oci_target="${BASH_REMATCH[1]}"
+              oci_version="${tag_pr:-${BASH_REMATCH[2]}}"
+              oci_arch="${BASH_REMATCH[3]}"
+
+              echo "From: ${oci_file}"
+              echo "To: ${OCI_REG}/${OCI_ORG}/score-autosd-${oci_target}:${oci_version}-${oci_arch}"
+
+              skopeo copy \
+              oci-archive:${oci_file} \
+              containers-storage:${OCI_REG}/${OCI_ORG}/score-autosd-${oci_target}:${oci_version}-${oci_arch}
+
+              echo "---"
+            fi
+          done
+
+          podman images
+        working-directory: outputs
+
+      - name: Push Container Images
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
+          
+          for img in $(podman images --format "{{.Repository}}:{{.Tag}}"); do
+            echo "Pushing ${img}"
+
+            podman push "$img"
+          done

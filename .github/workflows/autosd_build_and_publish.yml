@@ -22,83 +22,59 @@ jobs:
   build:
     strategy:
       matrix:
-        platform: [qemu-x86_64, qemu-aarch64, rpi4-aarch64]
+        platform: [amd64]
         include:
-          - platform: qemu-x86_64
-            runner: ubuntu-latest
-            arch: x86_64
-            target: qemu
-            disk_format: qcow2
-          - platform: qemu-aarch64
-            runner: ubuntu-24.04-arm
-            arch: aarch64
-            target: qemu
-            disk_format: qcow2
-          - platform: rpi4-aarch64
-            runner: ubuntu-24.04-arm
-            arch: aarch64
-            target: rpi4
-            disk_format: img
+          - platform: amd64
+            runner: ubuntu-24.04
     
     runs-on: ${{ matrix.runner }}
 
-    env:
-      AIB_BIN: ./auto-image-builder.sh
-      AIB_OCI_IMAGE: localhost/score-autosd-${{ matrix.target }}:latest-${{ matrix.arch }}
-      AIB_OCI_IMAGE_BUILDER: localhost/score-builder-${{ matrix.target }}:latest-${{ matrix.arch }}
-      AIB_TARGET: ${{ matrix.target }}
-      AIB_LOCAL_CONTAINER_STORAGE: ${{ github.workspace }}/autosd/_build/containers-storage
-
-    defaults:
-      run:
-        working-directory: autosd
+    permissions:
+     contents: read
+     packages: write
+     id-token: write
 
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Bazel
+        uses: bazel-contrib/setup-bazel@0.18.0
+
       - name: Install Base Dependencies
         run: |
           sudo apt update -y
-          sudo apt install -y podman tree
+          sudo apt install -y tree
 
       - name: Podman Info
         run: podman info
 
-      - name: Install AIB container script
-        run: |
-          wget -O auto-image-builder.sh \
-          https://gitlab.com/CentOS/automotive/src/automotive-image-builder/-/raw/main/auto-image-builder.sh?ref_type=heads
-
-          chmod +x auto-image-builder.sh
-
-      - name: Prepare Build
-        run: |
-          mkdir -p $PWD/_build/containers-storage
-          mkdir -p $PWD/_build/outputs
-
       - name: Build Image
-        run: sudo -E bash ./scripts/build.sh
+        run: |
+          bazel run //autosd:image
 
-      - name: Create Disk Images
-        run: sudo -E bash ./scripts/save.sh
-      
-      - name: Inspect outputs directory
-        run: ls -la $PWD/_build/outputs
+      - name: Check loaded image
+        run: docker images
 
-      - name: Upload Disk Image
-        uses: actions/upload-artifact@v4
+      - name: Test image content
+        run: |
+          echo '---/etc/containers/systemd/qm.container.d/10-lola-ipc.conf---'
+          docker run --rm localhost/score-autosd10-qemu:latest-base /bin/bash -c 'cat /etc/containers/systemd/qm.container.d/10-lola-ipc.conf'
+
+          echo '---/usr/lib/tmpfiles.d/lola_disc.conf---'
+          docker run --rm localhost/score-autosd10-qemu:latest-base /bin/bash -c 'cat /usr/lib/tmpfiles.d/lola_disc.conf'
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v4
         with:
-          name: score-autosd-${{ matrix.target }}-${{ matrix.arch }}-latest.${{ matrix.disk_format }}
-          path: autosd/_build/outputs/score-autosd-${{ matrix.target }}-${{ matrix.arch }}-latest.${{ matrix.disk_format }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload Container Image
-        uses: actions/upload-artifact@v4
-        with:
-          name: score-autosd-${{ matrix.target }}-${{ matrix.arch }}-latest.tar
-          path: autosd/_build/outputs/score-autosd-${{ matrix.target }}-${{ matrix.arch }}-latest.tar
-
-      - name: Upload Container Builder Image
-        uses: actions/upload-artifact@v4
-        with:
-          name: score-autosd-builder-${{ matrix.target }}-${{ matrix.arch }}-latest.tar
-          path: autosd/_build/outputs/score-autosd-builder-${{ matrix.target }}-${{ matrix.arch }}-latest.tar
+      - name: Publish Images
+        if: github.event_name != 'pull_request'
+        env:
+          OCI_ORG: ${{ github.repository_owner }}
+        run: |
+          docker tag localhost/score-autosd10-qemu:latest-base ghcr.io/$OCI_ORG/score-autosd10-qemu:latest-base
+          docker push ghcr.io/$OCI_ORG/score-autosd10-qemu:latest-base
+       

@@ -1,0 +1,16 @@
+bazel_dep(name = "rules_oci", version = "2.2.7")
+git_override(
+    module_name = "rules_oci",
+    commit = "d688832fb0deee00bf842bf0c81377e6bab62f51",
+    remote = "https://github.com/bazel-contrib/rules_oci.git",
+)
+
+oci = use_extension("@rules_oci//oci:extensions.bzl", "oci")
+oci.pull(
+    name = "eclipse_autosd10_bootc_qemu_base",
+    digest = "sha256:8eedf118e6cba1d8714ee32c67b61f11c07a673825c1133a56d7dd6a4365806a",
+    image = "ghcr.io/eclipse-autosd/eclipse-autosd-bootc-qemu",
+    platforms = ["linux/amd64"],
+    tag = "latest",
+)
+use_repo(oci, "eclipse_autosd10_bootc_qemu_base", "eclipse_autosd10_bootc_qemu_base_linux_amd64")

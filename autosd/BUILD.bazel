@@ -1,0 +1,26 @@
+load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
+
+pkg_tar(
+    name = "score_autosd_rootfs_tar",
+    srcs = glob(["rootfs/**"]),
+    strip_prefix = "rootfs"
+)
+
+oci_image(
+    name = "autosd_image_bootc_qemu",
+    base = "@eclipse_autosd10_bootc_qemu_base",
+    tars = [
+        ":score_autosd_rootfs_tar",
+    ],
+)
+
+oci_load(
+    name = "image",
+    image = ":autosd_image_bootc_qemu",
+    repo_tags = ["localhost/score-autosd10-qemu:latest-base"],
+    visibility = [
+      "//visibility:public",
+    ],
+)
+
